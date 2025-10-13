@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beat Bounce | Loading Session...</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: radial-gradient(circle at center, #0a0a0a 0%, #000 100%);
+      color: #f1f1f1;
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    #loader {
+      text-align: center;
+      animation: fadeIn 0.8s ease;
+    }
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 5px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #fcd53f;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    h2 {
+      font-weight: 500;
+      letter-spacing: 1px;
+      color: #fcd53f;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="loader">
+    <div class="spinner"></div>
+    <h2>Verifying Session...</h2>
+    <p style="opacity:0.6;">Connecting wallet securely</p>
+  </div>
+
+  <iframe id="unityFrame"></iframe>
+
+  <script>
+  (async () => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get("t");
+
+    if (!token) {
+      document.getElementById("loader").innerHTML = "<h2>❌ Invalid Access</h2><p>Token missing in URL.</p>";
+      return;
+    }
+
+    try {
+      // Verify session token with backend
+      const res = await fetch(`https://bbapi.buildquick.tech/session/resolve?t=${encodeURIComponent(token)}`);
+      const data = await res.json();
+
+      if (!data.valid) {
+        document.getElementById("loader").innerHTML = "<h2>❌ Session Invalid</h2><p>Please start again from the main site.</p>";
+        return;
+      }
+
+      const wallet = data.wallet;
+      console.log("✅ Wallet verified:", wallet);
+
+      // Update loader text
+      document.querySelector("h2").textContent = "Loading Beat Bounce...";
+      document.querySelector(".spinner").style.borderTopColor = "#4fff9f";
+
+      // Wait a moment for animation
+      await new Promise(r => setTimeout(r, 1000));
+
+      // Load Unity game iframe
+      const iframe = document.getElementById("unityFrame");
+      iframe.src = "https://cdn.beatbounce.xyz/Build/BeatBounceBuild/index.html";
+      iframe.style.display = "block";
+
+      // Hide loader after small fade delay
+      document.getElementById("loader").style.transition = "opacity 0.8s";
+      document.getElementById("loader").style.opacity = 0;
+      setTimeout(() => document.getElementById("loader").style.display = "none", 800);
+
+      // Send wallet to Unity once iframe loads
+      iframe.onload = () => {
+        iframe.contentWindow.postMessage({ type: "wallet", wallet }, "*");
+      };
+    } catch (err) {
+      console.error("Session verify error:", err);
+      document.getElementById("loader").innerHTML = "<h2>⚠️ Network Error</h2><p>Please try again later.</p>";
+    }
+  })();
+  </script>
+</body>
+</html>
